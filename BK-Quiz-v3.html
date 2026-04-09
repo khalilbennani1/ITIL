@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Simulateur ITIL 4 - Khalil Bennani</title>
+    <style>
+        :root { --primary: #002d72; --accent: #00a3e0; --success: #28a745; --danger: #dc3545; --light: #f8f9fa; }
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #e9ecef; margin: 0; padding: 20px; color: #333; }
+        #app { max-width: 850px; margin: auto; background: white; padding: 40px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); position: relative; min-height: 500px; }
+        .hidden { display: none; }
+        h1 { color: var(--primary); border-bottom: 2px solid var(--accent); padding-bottom: 10px; margin-top: 20px; }
+        .timer { font-size: 2rem; font-weight: bold; position: absolute; top: 40px; right: 40px; color: var(--primary); }
+        .blink { color: var(--danger); animation: blinker 1s linear infinite; }
+        @keyframes blinker { 50% { opacity: 0; } }
+        .grid-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 25px; }
+        .mode-card { background: var(--light); border: 2px solid #ddd; padding: 20px; border-radius: 10px; cursor: pointer; text-align: center; transition: 0.3s; }
+        .mode-card:hover { border-color: var(--accent); transform: translateY(-3px); background: #fff; }
+        .mode-card h3 { margin: 0 0 10px 0; color: var(--primary); }
+        .option { display: block; background: var(--light); border: 2px solid #ddd; padding: 15px; margin: 10px 0; border-radius: 8px; cursor: pointer; transition: 0.2s; }
+        .option:hover { border-color: var(--accent); background: #f0f7ff; }
+        .option.selected { border-color: var(--primary); background: #e3f2fd; font-weight: bold; }
+        .feedback { padding: 15px; border-radius: 8px; margin: 20px 0; font-weight: bold; line-height: 1.5; }
+        .correct-box { background: #d4edda; color: #155724; border-left: 5px solid var(--success); }
+        .wrong-box { background: #f8d7da; color: #721c24; border-left: 5px solid var(--danger); }
+        button { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-size: 1rem; }
+        .btn-pause { background: #6c757d; margin-left: 10px; }
+        #btn-home { position: absolute; top: 10px; left: 10px; padding: 5px 10px; font-size: 0.8rem; background: var(--accent); }
+        input[type="text"] { padding: 12px; width: 100%; max-width: 300px; border: 1px solid #ccc; border-radius: 5px; margin-bottom: 20px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <button id="btn-home" onclick="goHome()">🏠 Accueil</button>
+
+    <div id="screen-welcome">
+        <h1>Préparation ITIL® 4 Foundation</h1>
+        <p>Bonjour <strong>Khalil</strong>, choisissez votre programme du jour :</p>
+        <input type="text" id="username" placeholder="Votre nom" value="Khalil">
+        
+        <div class="grid-modes">
+            <div class="mode-card" onclick="initQuiz('JOUR1')">
+                <h3>📅 Jour 1</h3>
+                <small>Concepts, Terminologie & Valeur<br>(21 questions)</small>
+            </div>
+            <div class="mode-card" onclick="initQuiz('JOUR2')">
+                <h3>📅 Jour 2</h3>
+                <small>Principes & Pratiques Clés<br>(39 questions)</small>
+            </div>
+            <div class="mode-card" onclick="initQuiz('JOUR3')">
+                <h3>📅 Jour 3</h3>
+                <small>Centre de services & Incidents<br>(20 questions)</small>
+            </div>
+            <div class="mode-card" onclick="initQuiz('REVISION')" style="border-color: var(--accent);">
+                <h3>🚀 Révision Finale</h3>
+                <small>Mix Aléatoire<br>(40 questions)</small>
+            </div>
+
+	<div class="mode-card" onclick="initQuiz('PRATIQUES')" style="border-color: #28a745;">
+    		<h3>🎯 Questions sur les Pratiques</h3>
+    		<small>Focus sur les 15 pratiques (22 pts)<br>(20 questions)</small>
+	</div>
+
+        </div>
+    </div>
+
+    <div id="screen-quiz" class="hidden">
+        <div id="timer" class="timer">20:00</div>
+        <div id="progress" style="font-weight: bold; color: var(--accent);">Question 1 / 10</div>
+        <h2 id="question-text" style="margin-top: 30px; font-size: 1.2rem;"></h2>
+        <div id="options-container"></div>
+        <div id="feedback-area" class="feedback hidden"></div>
+        
+        <div style="margin-top: 30px; display: flex;">
+            <button id="btn-continue" onclick="handleAction()" style="flex: 2;">Confirmer la réponse</button>
+            <button id="btn-pause" class="btn-pause" onclick="togglePause()" style="flex: 1;">Pause</button>
+        </div>
+    </div>
+
+    <div id="screen-result" class="hidden">
+        <h1>Examen Terminé</h1>
+        <div id="result-summary" style="font-size: 1.5rem; margin: 20px 0;"></div>
+        <div id="result-status" style="font-size: 2rem; font-weight: bold; margin-bottom: 30px;"></div>
+        <button onclick="location.reload()">Retour à l'accueil</button>
+    </div>
+</div>
+
+<script>
+    const JOUR1_IDS = [105,107,121,122,124,127,134,135,139,140,202,205,207,208,210,214,216,223,227,231,236];
+    const JOUR2_IDS = [101,103,104,106,109,110,112,113,115,116,117,118,119,120,123,129,130,132,137,138,206,209,211,212,213,215,219,221,222,224,229,230,232,233,234,237,238,239,240];
+    const JOUR3_IDS = [102,108,111,114,125,126,128,131,133,136,201,203,204,217,218,220,225,226,228,235];
+
+       const questionsBank = [
+    // --- SAMPLE 1 (101 à 140) ---
+    { id: 101, q: "Quelle pratique est responsable du déplacement des composants vers les environnements de production ?", opts: ["L’habilitation des changements", "La gestion des mises en production", "La gestion des actifs informatiques", "La gestion des déploiements"], c: 3, j: "Le but de la pratique de gestion des déploiements est de déplacer du matériel, des logiciels, de la documentation, des processus ou tout autre composant nouveaux ou modifiés vers des environnements de production." },
+    { id: 102, q: "Quelle pratique inclue la classification et la propriété des questions et des demandes des utilisateurs ?", opts: ["Le centre de services", "La gestion des incidents", "L’habilitation des changements", "La gestion des niveaux de service"], c: 0, j: "Les centres de services offrent aux utilisateurs un moyen clair de signaler des difficultés, des questions ou des demandes, ainsi que d'obtenir confirmation de leur réception, de les classer, d'en être propriétaires et d'y donner suite." },
+    { id: 103, q: "Quelle pratique identifie les métriques qui reflètent l'expérience d'un service pour le client ?", opts: ["L'amélioration continue", "Le centre de services", "La gestion des niveaux de service", "La gestion des problèmes"], c: 2, j: "La gestion des niveaux de service identifie les métriques et les mesures qui reflètent fidèlement l'expérience et le niveau de satisfaction réels du client par rapport à l'ensemble du service." },
+    { id: 104, q: "Quelle est l'utilisation PRINCIPALE d'un calendrier des changements ?", opts: ["Pour supporter la 'gestion des incidents' et la planification d'améliorations", "Pour gérer les changements urgents", "Pour planifier les changements et éviter les conflits", "Pour gérer les changements standard"], c: 2, j: "Le calendrier des changements est utilisé pour aider à planifier les changements, soutenir la communication, éviter les conflits et assigner les ressources." },
+    { id: 105, q: "Quelle dimension de la gestion des services est axée sur les activités et la façon dont elles sont coordonnées ?", opts: ["Organisations et personnes", "Information et technologie", "Partenaires et fournisseurs", "Flux de valeur et processus"], c: 3, j: "La dimension 'flux de valeur et processus' est axée sur les activités que l'organisation entreprend et sur la façon dont elles sont organisées." },
+    { id: 106, q: "De quelle façon la catégorisation des incidents assiste-t-elle la pratique de 'gestion des incidents' ?", opts: ["Elle permet de diriger l'incident vers la zone de support appropriée", "Elle détermine la priorité assignée à l'incident", "Elle s'assure que les incidents sont résolus dans les délais convenus", "Elle détermine la façon dont le fournisseur est perçu"], c: 0, j: "Généralement, l'acheminement dépend de la catégorie de l'incident, laquelle devrait permettre d'identifier l'équipe appropriée." },
+    { id: 107, q: "Un service est un moyen qui permet la co-création de valeur en facilitant [?] que les clients veulent atteindre.", opts: ["la garantie", "les résultats", "l'utilité", "les livrables"], c: 1, j: "Un service est un moyen de permettre la co-création de valeur en facilitant des résultats que les clients veulent atteindre." },
+    { id: 108, q: "Laquelle des options suivantes est une recommandation de la pratique d'amélioration continue ?", opts: ["Il devrait y avoir au moins une petite équipe dédiée à temps plein", "Toutes les améliorations doivent être gérées comme des projets à phases multiples", "L'amélioration continue doit être isolée des autres pratiques", "Les fournisseurs externes doivent être exclus"], c: 0, j: "Il devrait y avoir au moins une petite équipe dédiée à temps plein à la conduite d'efforts d'amélioration continue et à la promotion de la pratique." },
+    { id: 109, q: "Bénéfice potentiel de l'utilisation d'un outil ITSM pour supporter la pratique de 'gestion des incidents' ?", opts: ["S'assurer que la cause est identifiée dans les délais", "Fournir une correspondance automatisée des incidents aux problèmes ou erreurs connues", "S'assurer que les contrats fournisseurs sont alignés", "Permettre la résolution automatisée d'incidents complexes"], c: 1, j: "Les outils modernes peuvent fournir une correspondance automatisée des incidents avec d'autres incidents, problèmes ou erreurs connues." },
+    { id: 110, q: "Quel rôle soumet des demandes de services ?", opts: ["L'utilisateur ou son représentant autorisé", "Le client ou son représentant autorisé", "Le sponsor ou son représentant autorisé", "Le fournisseur ou son représentant autorisé"], c: 0, j: "Une demande de service est définie comme la demande d'un utilisateur ou du représentant autorisé d'un utilisateur." },
+    { id: 111, q: "Quelle pratique propose un point de contact unique pour les utilisateurs ?", opts: ["La gestion des incidents", "L’habilitation des changements", "Le centre de services", "La gestion des demandes de services"], c: 2, j: "Le but du centre de services est d'être le point d'entrée et le point de contact unique pour le fournisseur de services avec tous ses utilisateurs." },
+    { id: 112, q: "Quel principe directeur recommande de prendre en considération les quatre dimensions ?", opts: ["Penser et travailler de façon holistique", "Avancer par itération avec des retours", "Privilégier la valeur", "Opter pour la simplicité et rester pratique"], c: 0, j: "Le principe 'penser et travailler de façon holistique' inclut les quatre dimensions de la gestion des services." },
+    { id: 113, q: "Laquelle des options suivantes est supportée par la pratique de 'gestion des demandes de services' ?", opts: ["Une demande d'autorisation d'un changement", "Une demande concernant quelque chose qui fait partie de la fourniture normale des services", "Une demande de restauration du service", "Une demande d'investigation sur la cause"], c: 1, j: "Une demande de service est une demande d'un utilisateur qui déclenche une action de service convenue dans le cadre de la fourniture normale des services." },
+    { id: 114, q: "Quelle pratique relève de la responsabilité de chacun au sein de l'organisation ?", opts: ["La gestion des niveaux de service", "L’habilitation des changements", "La gestion des problèmes", "L'amélioration continue"], c: 3, j: "L'amélioration continue est la responsabilité de tous et doit être ancrée dans chaque rouage de l'organisation." },
+    { id: 115, q: "Le but de la 'gestion de la sécurité de l'information' est de [?] les informations de l'organisation.", opts: ["stocker", "fournir", "vérifier", "protéger"], c: 3, j: "Le but est de protéger les informations dont l'organisation a besoin pour mener ses activités." },
+    { id: 116, q: "Quel principe recommande de collecter les données avant de déterminer ce qui peut être réutilisé ?", opts: ["Privilégier la valeur", "Commencer là où vous êtes", "Opter pour la simplicité et rester pratique", "Avancer par itération avec des retours"], c: 1, j: "Obtenir des données à la source permet d'éviter les hypothèses et de bien comprendre l'état actuel et ce qui peut en être réutilisé." },
+    { id: 117, q: "Laquelle des options suivantes N'est habituellement PAS incluse dans la gestion des incidents ?", opts: ["Scripts pour recueillir des informations", "Procédures formalisées pour enregistrer les incidents", "Procédures détaillées pour diagnostiquer les incidents", "Recours à des connaissances spécialisées"], c: 2, j: "Ce processus n'inclut généralement PAS de procédures détaillées indiquant comment diagnostiquer, investiguer et résoudre les incidents." },
+    { id: 118, q: "Laquelle des options suivantes décrit le mieux la nature des principes directeurs ?", opts: ["Ils peuvent guider une organisation en toutes circonstances", "Chaque principe impose des actions spécifiques", "On adopte un seul des sept principes", "Ils décrivent les processus obligatoires"], c: 0, j: "Un principe directeur est une recommandation pouvant guider une organisation en toutes circonstances." },
+    { id: 119, q: "Quel énoncé sur l'autorité de changement est CORRECT ?", opts: ["Une seule autorité pour tous les types", "Une autorité doit être assignée pour chaque type et modèle", "Les changements normaux sont pré-autorisés", "Les changements urgents n'ont pas besoin d'autorisation"], c: 1, j: "Il est essentiel d'assigner l'autorité de changement appropriée à chaque type de changement afin d'assurer l'efficacité." },
+    { id: 120, q: "Quelle pratique a pour but de mettre à disposition des services et des fonctionnalités nouveaux ou modifiés ?", opts: ["L’habilitation des changements", "La gestion des demandes de services", "La gestion des mises en production", "La gestion des déploiements"], c: 2, j: "Le but de la pratique de gestion des mises en production est de mettre à disposition des services et des fonctionnalités nouveaux ou modifiés." },
+    { id: 121, q: "Quelle activité de la chaîne de valeur permet de s'assurer que les personnes comprennent la vision ?", opts: ["Améliorer", "Planifier", "Fournir et soutenir", "Obtenir/construire"], c: 1, j: "Le but de 'planifier' est de s'assurer d'une compréhension commune de la vision, de l'état actuel et de la direction d'amélioration." },
+    { id: 122, q: "Quel énoncé sur les activités de la chaîne de valeur est CORRECT ?", opts: ["Chaque pratique appartient à une seule activité", "Une combinaison constitue une relation de service", "Elles constituent un flux de travail unique", "Chaque activité transforme des entrées spécifiques en livrables"], c: 3, j: "Chaque activité transforme des entrées en livrables. Toutes les activités sont interconnectées." },
+    { id: 123, q: "Quel est le but de la pratique de 'gestion des fournisseurs' ?", opts: ["S'assurer que fournisseurs et performances sont gérés de manière appropriée", "Aligner les pratiques sur les besoins business", "Gérer les relations stratégiques via marketing et vente", "S'assurer que les informations de configuration sont disponibles"], c: 0, j: "Le but est de s'assurer que les fournisseurs et leurs niveaux de performance sont gérés de manière appropriée pour soutenir l'approvisionnement continu." },
+    { id: 124, q: "Quels sont les deux types de coûts que le consommateur d'un service doit évaluer ?", opts: ["Prix vs Création", "Coûts supprimés vs Coûts imposés", "Fourniture vs Amélioration", "Logiciel vs Matériel"], c: 1, j: "Le consommateur doit évaluer les coûts supprimés par le service et les coûts imposés par le service." },
+    { id: 125, q: "Laquelle des options suivantes est un but de la pratique du 'centre de services' ?", opts: ["Identifier les causes réelles des incidents", "Vérifier que les risques des changements sont évalués", "Capturer la demande de résolution d'incidents et demandes de services", "Définir des cibles de performance basées sur le business"], c: 2, j: "Le but du centre de services est de capturer la demande de résolution des incidents et les demandes de services." },
+    { id: 126, q: "De quelle façon une organisation doit-elle adopter des méthodes d'amélioration continue ?", opts: ["Nouvelle méthode pour chaque amélioration", "Choisir quelques méthodes clés appropriées", "Utiliser autant de méthodes que possible", "Choisir une seule méthode pour tout"], c: 1, j: "Il est judicieux de sélectionner quelques méthodes clés appropriées pour les types d'améliorations que l'organisation gère habituellement." },
+    { id: 127, q: "Quel concept ITIL décrit la gouvernance ?", opts: ["Les sept principes directeurs", "Les quatre dimensions", "La chaîne de valeur des services", "Le système de valeur des services"], c: 3, j: "Les composants du système de valeur des services (SVS) incluent les principes directeurs, la gouvernance, la chaîne de valeur, les pratiques et l'amélioration." },
+    { id: 128, q: "Laquelle des options suivantes est une recommandation du 'centre de services' ?", opts: ["Éviter le recours à l'automatisation", "Être très technique", "Comprendre l'organisation dans son ensemble", "Être une équipe physique dans un même endroit"], c: 2, j: "Une caractéristique clé est sa compréhension pratique du contexte business plus large, des processus business et des utilisateurs." },
+    { id: 129, q: "Quel principe recommande d'organiser le travail en parties plus petites et gérables ?", opts: ["Privilégier la valeur", "Commencer là où vous êtes", "Avancer par itération avec des retours", "Collaborer et promouvoir la visibilité"], c: 2, j: "En organisant le travail en parties plus petites, l'accent mis sur chaque effort sera plus précis et plus facile à maintenir." },
+    { id: 130, q: "Qu'est-ce qu'un changement standard ?", opts: ["Changement préautorisé, bien compris et documenté", "Changement qui doit être évalué par une autorité", "Changement sans évaluation de risques pour résoudre un incident", "Changement planifié dans l'amélioration continue"], c: 0, j: "Il s'agit de changements préautorisés, à faible risque, qui sont bien compris et intégralement documentés." },
+    { id: 131, q: "Que se passe-t-il quand une solution de contournement devient permanente car la résolution n'est pas rentable ?", opts: ["Demande de changement soumise", "La gestion des problèmes restaure le service", "Le problème conserve le statut d'erreur connue", "L'enregistrement du problème est supprimé"], c: 2, j: "Dans ce cas de figure, le problème conserve le statut d'erreur connue et la solution de contournement s'applique en cas d'incidents successifs." },
+    { id: 132, q: "Quelle est la définition d'un changement ?", opts: ["Ajouter, modifier ou supprimer ce qui pourrait affecter les services", "S'assurer que les infos de configuration sont disponibles", "Mettre à disposition des fonctionnalités nouvelles", "Déplacer du matériel vers la production"], c: 0, j: "Un changement correspond à l'ajout, la modification ou la suppression de tout ce qui pourrait avoir un effet sur les services." },
+    { id: 133, q: "Quelle est la définition d'un événement ?", opts: ["Changement d'état significatif pour la gestion d'un service ou d'un CI", "Composant à gérer pour fournir un service", "Interruption non planifiée d'un service", "Composant avec valeur financière"], c: 0, j: "Un événement peut être défini comme tout changement d’état significatif pour la gestion d’un service ou de tout autre élément de configuration." },
+    { id: 134, q: "Quelle option décrit des résultats ?", opts: ["Éléments livrables tangibles", "Fonctionnalité offerte par un produit", "Résultats souhaités par une partie prenante", "Configuration des ressources"], c: 2, j: "Un résultat est un résultat pour une partie prenante, rendu possible par un ou plusieurs livrables." },
+    { id: 135, q: "PAS un élément clé de la dimension 'information et technologie' ?", opts: ["Sécurité et conformité", "Systèmes de communication et bases de connaissances", "Gestion du flux de travaux et inventaire", "Rôles et responsabilités"], c: 3, j: "La dimension 'organisations et personnes' couvre les rôles et responsabilités." },
+    { id: 136, q: "Pratiques impliquées dans l'implémentation de la résolution d'un problème ?", opts: ["1 et 2", "2 et 3", "3 et 4", "1 et 4"], c: 3, j: "Les solutions peuvent être traitées comme opportunités d'amélioration (1) et le contrôle des erreurs peut entraîner une demande de changement (4)." },
+    { id: 137, q: "Élément clé du principe 'opter pour la simplicité et rester pratique' ?", opts: ["Créer une solution pour chaque exception", "Comprendre comment chaque élément contribue à la valeur", "Ignorer les objectifs contradictoires", "Commencer par une solution complexe"], c: 1, j: "Demandez-vous toujours si une pratique, un processus ou un service contribue à la création de valeur." },
+    { id: 138, q: "Que faire en premier pour le principe 'privilégier la valeur' ?", opts: ["Identifier les résultats", "Identifier les fournisseurs", "Déterminer qui est le consommateur du service", "Déterminer le coût de fourniture"], c: 2, j: "La première étape est de savoir qui est servi. Le fournisseur doit déterminer qui est le consommateur." },
+    { id: 139, q: "Exemple d'offre de service ?", opts: ["Valeur", "Résultat", "Garantie", "Package ordinateur + logiciel + support"], c: 3, j: "Les fournisseurs définissent des combinaisons de biens, d'accès et d'actions : ce sont des offres de services." },
+    { id: 140, q: "Quelle est la définition d'une garantie ?", opts: ["Livrable tangible ou intangible", "Assurance qu'un produit répondra aux exigences", "Événement potentiel entraînant un préjudice", "Fonctionnalité offerte pour satisfaire un besoin"], c: 1, j: "La garantie est l’assurance qu'un produit ou un service répondra aux exigences convenues." },
+
+    // --- SAMPLE 2 (201 à 240) ---
+    { id: 201, q: "Quel est l'effet de l'automatisation accrue sur la pratique 'centre de services' ?", opts: ["Meilleure capacité à se concentrer sur l'expérience client lorsqu'un contact personnel est nécessaire", "Diminution des enregistrements et des résolutions d'incidents en libre-service", "Capacité accrue de se concentrer sur la réparation des technologies au lieu de supporter les personnes", "Élimination du besoin d'escalader les incidents aux équipes de support"], c: 0, j: "L'impact sur les centres de services se traduit par une réduction des tâches de bas niveau et une plus grande capacité à se concentrer sur une excellente expérience client (CX)." },
+  { id: 202, q: "Quel terme décrit la fonctionnalité offerte par un service ?", opts: ["Coût", "Utilité", "Garantie", "Risque"], c: 1, j: "L'utilité est la fonctionnalité offerte par un produit ou un service (ce que le service fait)." },
+  { id: 203, q: "Quel est le but de la pratique 'surveillance et gestion des événements' ?", opts: ["S'assurer que des informations fiables sur la configuration sont disponibles", "Observer systématiquement des services et composants, et enregistrer les changements d'état", "Protéger les informations dont l'organisation a besoin", "Réduire l'impact négatif des incidents"], c: 1, j: "Cette pratique consiste à observer systématiquement les services et à enregistrer les changements d'états identifiés en tant qu'événements." },
+  { id: 204, q: "Sur quoi doivent être basées toutes les décisions d'amélioration continue ?", opts: ["Détails sur la façon dont les services sont mesurés", "Données exactes, soigneusement analysées", "Tableau de bord équilibré et mis à jour", "Évaluation de maturité récente"], c: 1, j: "Des données exactes et analysées constituent le fondement d'une prise de décision fondée sur des faits." },
+  { id: 205, q: "Comment les activités de la chaîne de valeur transforment-elles les intrants en livrables ?", opts: ["En déterminant la demande de services", "En utilisant une combinaison de pratiques", "En utilisant une seule équipe fonctionnelle", "En implémentant l'automatisation des processus"], c: 1, j: "Pour convertir les entrées en livrables, les activités de la chaîne de valeur utilisent différentes combinaisons de pratiques ITIL." },
+  { id: 206, q: "Comment l'implication des clients contribue-t-elle à la pratique de 'gestion des niveaux de service' ?", opts: ["Elle capture les infos de base pour les métriques", "Elle s'assure que l'organisation atteint les niveaux définis", "Elle définit les flux de travail des demandes", "Elle capture les infos pour les métriques et supporte les discussions sur les progrès"], c: 3, j: "L'implication du client permet de découvrir les besoins réels pour les métriques et facilite les discussions régulières sur les progrès." },
+  { id: 207, q: "Quel est le point de départ de l'optimisation ?", opts: ["Obtenir l'implication des parties prenantes", "Comprendre la vision et les objectifs de l'organisation", "Déterminer où l'impact le plus positif se produirait", "Standardiser les pratiques et les services"], c: 1, j: "La première étape est de comprendre le contexte, ce qui inclut de convenir de la vision globale et des objectifs de l'organisation." },
+  { id: 208, q: "[?] a pour but de s'assurer que l'organisation co-crée continuellement de la valeur avec toutes les parties prenantes.", opts: ["Le principe directeur 'privilégier la valeur'", "Les quatre dimensions de la gestion des services", "Le système de valeur des services", "La pratique 'gestion des demandes de service'"], c: 2, j: "Le but du SVS est de s'assurer que l'organisation co-crée continuellement de la valeur avec toutes les parties prenantes." },
+  { id: 209, q: "Quelle pratique supporte la gestion des retours, des compliments et des plaintes des utilisateurs ?", opts: ["L’habilitation des changements", "La gestion des demandes de services", "La gestion des problèmes", "La gestion des incidents"], c: 1, j: "Chaque demande de service peut inclure des retours, des compliments et des plaintes." },
+  { id: 210, q: "Quelle activité effectuée conjointement par le fournisseur et le consommateur s'assure d'une co-création continue de valeur ?", opts: ["La fourniture de service", "La consommation de service", "L'offre de service", "La gestion des relations de service"], c: 3, j: "La gestion des relations de service désigne les activités conjointes pour assurer la co-création continue de valeur." },
+  { id: 211, q: "Quelle pratique peut comporter le déclenchement d'une reprise après une catastrophe ?", opts: ["La gestion des incidents", "La gestion des demandes de services", "La gestion des niveaux de service", "La gestion des actifs informatiques"], c: 0, j: "Dans certaines situations extrêmes, la résolution d'un incident nécessite le déclenchement de plans de reprise après sinistre." },
+  { id: 212, q: "Quel type de changement est le PLUS susceptible d'être géré par la pratique 'gestion des demandes de service' ?", opts: ["Un changement normal", "Un changement urgent", "Un changement standard", "Un changement applicatif"], c: 2, j: "L'exécution des demandes de service peut inclure des changements standards (préautorisés et à faible risque)." },
+  { id: 213, q: "Quel principe directeur met l'accent sur la nécessité de comprendre le flux de travail, les goulots et les gaspillages ?", opts: ["Privilégier la valeur", "Collaborer et promouvoir la visibilité", "Penser et travailler de façon holistique", "Opter pour la simplicité et rester pratique"], c: 1, j: "Pour piloter les améliorations, l'organisation doit comprendre le flux de travail et détecter les gaspillages." },
+  { id: 214, q: "Laquelle des options suivantes est un moyen de permettre la co-création de valeur en facilitant des résultats ?", opts: ["Un service", "Un livrable", "Une pratique", "L'amélioration continue"], c: 0, j: "C'est la définition d'un service : un moyen de permettre la co-création de valeur en facilitant des résultats." },
+  { id: 215, q: "Quel énoncé sur l'autorisation des changements est CORRECT ?", opts: ["Une autorité doit être affectée à chaque type et modèle", "Centraliser auprès d'une seule personne est le plus efficace", "L’autorisation des changements normaux doit être accélérée", "Les changements standards doivent être autorisés au plus haut niveau"], c: 0, j: "Il est essentiel d'assigner l'autorité de changement appropriée à chaque type de changement." },
+  { id: 216, q: "Quelle dimension de la gestion des services prend en compte la gouvernance, la gestion et la communication ?", opts: ["Organisations et personnes", "Information et technologie", "Partenaires et fournisseurs", "Flux de valeur et processus"], c: 0, j: "La dimension organisations et personnes couvre les rôles, responsabilités, structures et systèmes de communication." },
+  { id: 217, q: "Une erreur connue est un problème qui a été [?] et n'a pas été résolu.", opts: ["enregistré", "analysé", "escaladé", "clos"], c: 1, j: "Une erreur connue est un problème ayant été analysé, mais non résolu." },
+  { id: 218, q: "Quel énoncé sur les erreurs connues et les problèmes est CORRECT ?", opts: ["Une erreur connue est l'état attribué à un problème une fois analysé", "Une erreur connue est la cause d'un ou de plusieurs problèmes", "Les erreurs connues entraînent des vulnérabilités", "Les erreurs connues sont gérées par le personnel technique uniquement"], c: 0, j: "Known Error est le statut donné à un problème après l'analyse initiale." },
+  { id: 219, q: "De quoi dépend la pratique de 'gestion des demandes de service' pour une efficience maximale ?", opts: ["Des compliments et des réclamations", "Des outils en libre-service", "Des processus et des procédures", "De la gestion des incidents"], c: 2, j: "Cette pratique dépend de processus et de procédures bien conçus, automatisés pour maximiser l'efficience." },
+  { id: 220, q: "Quel énoncé sur la pratique 'centre de services' est CORRECT ?", opts: ["Il fournit un lien entre parties prenantes stratégiques", "Il procède à l'autorisation des changements", "Il enquête sur l'origine des incidents", "Il requiert une compréhension pratique des processus business"], c: 3, j: "Une caractéristique clé est sa compréhension pratique du contexte business plus large et des utilisateurs." },
+  { id: 221, q: "Quelle pratique s'assure de la disponibilité d'informations fiables sur les CI et leurs relations ?", opts: ["La gestion de la configuration des services", "Le centre de services", "La gestion des actifs informatiques", "La surveillance et la gestion des événements"], c: 0, j: "C'est le but de la gestion de la configuration des services." },
+  { id: 222, q: "Quelle pratique a pour but de rétablir aussi rapidement que possible l’exploitation normale ?", opts: ["La gestion des fournisseurs", "La gestion des déploiements", "La gestion des problèmes", "La gestion des incidents"], c: 3, j: "Le but de la gestion des incidents est de restaurer l'exploitation normale aussi rapidement que possible." },
+  { id: 223, q: "Un client est une personne qui définit les exigences et assume la responsabilité [?] de la consommation.", opts: ["des livrables", "des résultats", "des coûts", "des risques"], c: 1, j: "Le client définit les exigences et assume la responsabilité des résultats (outcomes) de la consommation." },
+  { id: 224, q: "Quel principe décrit l'importance d'agir plutôt que de consacrer trop de temps à l'analyse ?", opts: ["Optimiser et automatiser", "Commencer là où vous êtes", "Privilégier la valeur", "Avancer par itération avec des retours"], c: 3, j: "Ce principe recommande d'éviter la 'paralysie par analyse' en travaillant de façon itérative." },
+  { id: 225, q: "Que faut-il faire pour chaque problème ?", opts: ["Un diagnostic pour identifier les solutions", "Établir sa priorité selon l'impact potentiel et la probabilité", "Le résoudre pour pouvoir être clos", "Trouver une solution de contournement"], c: 1, j: "Les problèmes sont priorisés selon le risque (impact et probabilité)." },
+  { id: 226, q: "Comment une organisation doit-elle inclure des fournisseurs tiers dans l'amélioration continue ?", opts: ["En stipulant les méthodes d'amélioration dans les contrats", "En exigeant des méthodes agiles", "En exigeant des pratiques de gestion de projet", "Via les activités de gestion des problèmes"], c: 0, j: "Le contrat doit stipuler les méthodes de mesure, de création de rapports et d'amélioration." },
+  { id: 227, q: "Quelles considérations influencent la stratégie fournisseurs d'une organisation ?", opts: ["Les contrats et accords", "Le type de coopération", "La culture d'entreprise de l'organisation", "Le niveau de formalité"], c: 2, j: "La culture d'entreprise (préférences historiques) influence le choix d'internaliser ou d'externaliser." },
+  { id: 228, q: "Qu'est-ce qu'un problème ?", opts: ["L'ajout ou modification affectant les services", "Un changement d'état significatif", "La cause réelle ou potentielle d'un ou de plusieurs incidents", "La réduction imprévue de la qualité d'un service"], c: 2, j: "Définition ITIL : Cause réelle ou potentielle d'un ou plusieurs incidents." },
+  { id: 229, q: "Quel est le but de la pratique 'gestion des relations' ?", opts: ["Aligner les pratiques sur les besoins business", "Établir et entretenir des liens stratégiques et tactiques", "Réduire la probabilité des incidents", "Rétablir le fonctionnement normal au plus vite"], c: 1, j: "Son but est d'établir et d'entretenir des liens entre l'organisation et ses parties prenantes." },
+  { id: 230, q: "Laquelle des options suivantes vise à aider les organisations à adopter et adapter les conseils ITIL ?", opts: ["Les quatre dimensions", "Les principes directeurs", "La chaîne de valeur des services", "Les pratiques"], c: 1, j: "Les principes directeurs guident les organisations pour adopter et adapter ITIL." },
+  { id: 231, q: "Qu’est-ce qu’un livrable ?", opts: ["Un changement d'état significatif", "Un événement possible préjudiciable", "Un résultat pour une partie prenante", "Quelque chose qui est créé à la suite d'une activité"], c: 3, j: "Un livrable est un élément (tangible ou intangible) issu d'une activité." },
+  { id: 232, q: "Quelle est la raison pour laquelle un ensemble équilibré de métriques de service est utilisé ?", opts: ["Réduire le nombre de métriques", "Rapporter chaque élément séparément", "Fournir une perspective des services en fonction des résultats", "Faciliter la collecte automatique"], c: 2, j: "L'utilisation de métriques équilibrées permet de se concentrer sur les résultats plutôt que sur des composants isolés." },
+  { id: 233, q: "Pourquoi les incidents doivent-il être priorisés ?", opts: ["Pour l'appariement automatisé", "Pour identifier l'équipe d'escalade", "Pour résoudre en premier les incidents ayant le plus fort impact business", "Pour encourager la collaboration"], c: 2, j: "La priorité assure que les incidents ayant le plus d'impact business sont traités en premier." },
+  { id: 234, q: "Quelle pratique a pour but d'aider l'organisation à optimiser la valeur, contrôler les coûts et gérer les risques ?", opts: ["La gestion des relations", "La gestion des actifs informatiques", "La gestion des mises en production", "Le centre de services"], c: 1, j: "C'est le but de la gestion des actifs informatiques (ITAM)." },
+  { id: 235, q: "Pourquoi le personnel du centre de services doit-il détecter les difficultés récurrentes ?", opts: ["Pour mieux identifier les problèmes", "Pour escalader à la bonne équipe", "Pour assurer la gestion des demandes", "Pour impliquer l'autorité de changement"], c: 0, j: "La détection de difficultés récurrentes est une activité d'identification des problèmes." },
+  { id: 236, q: "Quelle activité de la chaîne de valeur communique l'état actuel des quatre dimensions ?", opts: ["Améliorer", "Impliquer", "Obtenir/construire", "Planifier"], c: 3, j: "L'activité Planifier assure une compréhension commune de l'état actuel pour les quatre dimensions." },
+  { id: 237, q: "Quel principe directeur se préoccupe PRINCIPALEMENT des recettes et de la croissance du consommateur ?", opts: ["Opter pour la simplicité et rester pratique", "Optimiser et automatiser", "Avancer par itération avec des retours", "Privilégier la valeur"], c: 3, j: "Privilégier la valeur se concentre sur les bénéfices pour le consommateur (recettes, croissance, etc.)." },
+  { id: 238, q: "Quelle pratique fournit une visibilité sur les services en produisant des rapports sur la performance ?", opts: ["Le centre de services", "La gestion des niveaux de service", "La gestion des demandes de services", "La gestion de la configuration des services"], c: 1, j: "La gestion des niveaux de service fournit une visibilité de bout en bout en rapportant les performances." },
+  { id: 239, q: "Quel est le MEILLEUR exemple d'un changement urgent ?", opts: ["Mise en production planifiée d'application", "Mise à niveau informatique à faible risque", "Implémentation d'un correctif de sécurité critique", "Implémentation matérielle majeure planifiée"], c: 2, j: "Un changement urgent doit être implémenté au plus tôt (ex: correctif de sécurité critique)." },
+  { id: 240, q: "Quel principe directeur recommande d'évaluer l'état actuel et de décider ce qui peut être réutilisé ?", opts: ["Privilégier la valeur", "Commencer là où vous êtes", "Collaborer et promouvoir la visibilité", "Avancer par itération avec des retours"], c: 1, j: "Commencer là où vous êtes stipule qu'il faut comprendre l'état actuel pour sélectionner ce qui peut être réutilisé." },
+
+    // --- AMÉLIORATION CONTINUE (Priorité Haute) ---
+    { id: 301, q: "Quel est le but principal de la pratique 'Amélioration continue' ?", opts: ["Aligner les services sur les besoins évolutifs du business", "Gérer les incidents techniques majeurs", "Déployer de nouveaux logiciels", "Gérer les relations avec les partenaires"], c: 0, j: "L'amélioration continue aligne les services et pratiques sur les besoins business changeants." },
+    { id: 302, q: "Qui est responsable de l'amélioration continue dans une organisation ?", opts: ["L'équipe de direction uniquement", "Le responsable qualité uniquement", "Tout le monde au sein de l'organisation", "Les fournisseurs externes uniquement"], c: 2, j: "L'amélioration continue est une responsabilité partagée par tous les membres de l'organisation." },
+    { id: 303, q: "Quel document est utilisé pour enregistrer et gérer les idées d'amélioration ?", opts: ["Le calendrier des changements", "Le registre d'amélioration continue (CIR)", "Le catalogue des services", "Le journal des incidents"], c: 1, j: "Le CIR (Continual Improvement Register) sert à suivre et prioriser les opportunités d'amélioration." },
+
+    // --- CENTRE DE SERVICES (Service Desk) ---
+    { id: 304, q: "Quelle pratique est le point de contact unique pour les utilisateurs ?", opts: ["Gestion des incidents", "Gestion des problèmes", "Centre de services", "Gestion des niveaux de service"], c: 2, j: "Le centre de services est le point d'entrée unique pour signaler des difficultés ou faire des demandes." },
+    { id: 305, q: "Quel est l'impact de l'automatisation sur le centre de services ?", opts: ["Augmentation des tâches manuelles", "Libération de temps pour se concentrer sur l'expérience client", "Suppression totale des agents humains", "Interdiction d'escalader les incidents"], c: 1, j: "L'automatisation réduit les tâches de bas niveau, permettant aux agents de soigner la relation client." },
+
+    // --- GESTION DES INCIDENTS ---
+    { id: 306, q: "Quel est le but de la gestion des incidents ?", opts: ["Identifier la cause profonde d'une panne", "Rétablir le service normal le plus rapidement possible", "Autoriser les changements d'infrastructure", "Vendre de nouveaux services"], c: 1, j: "Le but est de restaurer l'exploitation normale le plus vite possible pour minimiser l'impact." },
+    { id: 307, q: "Comment les incidents doivent-ils être priorisés ?", opts: ["Selon l'humeur de l'utilisateur", "Selon l'impact business et l'urgence", "Selon l'ordre d'arrivée uniquement", "Selon la complexité technique"], c: 1, j: "La priorité est basée sur l'impact (effet sur le business) et l'urgence (vitesse de résolution requise)." },
+
+    // --- GESTION DES PROBLÈMES ---
+    { id: 308, q: "Quelle pratique analyse les causes réelles ou potentielles d'incidents ?", opts: ["Gestion des incidents", "Gestion des problèmes", "Gestion des changements", "Gestion des actifs"], c: 1, j: "La gestion des problèmes réduit la probabilité des incidents en identifiant leurs causes." },
+    { id: 309, q: "Comment appelle-t-on un problème qui a été analysé mais non résolu ?", opts: ["Un incident majeur", "Une erreur connue (Known Error)", "Une demande de service", "Un risque résiduel"], c: 1, j: "Une erreur connue est un problème analysé pour lequel une solution de contournement existe souvent." },
+
+    // --- GESTION DES DEMANDES DE SERVICE ---
+    { id: 310, q: "Laquelle est une demande de service type ?", opts: ["Signalement d'un écran noir", "Demande d'accès à une application", "Panne réseau totale", "Découverte d'un bug logiciel"], c: 1, j: "Les demandes concernent la fourniture normale (accès, infos, installation standard)." },
+
+    // --- GESTION DES NIVEAUX DE SERVICE (SLM) ---
+    { id: 311, q: "Quel est le but de la gestion des niveaux de service ?", opts: ["Mesurer la performance technique des serveurs", "Définir des cibles claires basées sur le business pour les services", "Remplacer le centre de services", "Gérer les contrats de travail"], c: 1, j: "Le SLM s'assure que la performance des services est évaluée par rapport à des cibles convenues." },
+
+    // --- HABILITATION DES CHANGEMENTS ---
+    { id: 312, q: "Quel est le but de l'habilitation des changements ?", opts: ["Empêcher tout changement technique", "Maximiser le nombre de changements réussis par une évaluation des risques", "Installer physiquement les serveurs", "Gérer les relations publiques"], c: 1, j: "Elle assure que les risques sont évalués pour autoriser les changements efficacement." },
+    { id: 313, q: "Qu'est-ce qu'un changement standard ?", opts: ["Un changement urgent suite à une panne", "Un changement à faible risque pré-autorisé et documenté", "Un changement majeur nécessitant un comité", "Un changement de stratégie d'entreprise"], c: 1, j: "Les changements standards sont routiniers, bien compris et ne nécessitent pas d'autorisation à chaque fois." },
+
+    // --- GESTION DES CONFIGURATIONS ---
+    { id: 314, q: "Quelle pratique s'assure que les informations sur les CI (Éléments de Configuration) sont fiables ?", opts: ["Gestion des actifs informatiques", "Gestion de la configuration du service", "Gestion des déploiements", "Gestion des fournisseurs"], c: 1, j: "Elle fournit des infos sur les composants du service et leurs relations." },
+
+    // --- GESTION DES ACTIFS (ITAM) ---
+    { id: 315, q: "Quel est le but de la gestion des actifs informatiques ?", opts: ["Réparer les ordinateurs", "Gérer le cycle de vie et la valeur financière des composants", "Surveiller les logs serveurs", "Former les utilisateurs"], c: 1, j: "L'ITAM vise à optimiser la valeur, contrôler les coûts et gérer les risques liés aux actifs." },
+
+    // --- GESTION DES MISES EN PRODUCTION (Release) ---
+    { id: 316, q: "Quelle pratique rend les nouvelles fonctionnalités disponibles à l'utilisation ?", opts: ["Gestion des déploiements", "Gestion des mises en production", "Gestion des problèmes", "Gestion des niveaux de service"], c: 1, j: "La mise en production (Release) rend le service disponible (aspect logique/utilisabilité)." },
+
+    // --- GESTION DES DÉPLOIEMENTS (Deployment) ---
+    { id: 317, q: "Quel est le but de la gestion des déploiements ?", opts: ["Décider de la stratégie", "Déplacer les composants vers les environnements de production", "Rédiger les contrats", "Gérer les émotions des utilisateurs"], c: 1, j: "Le déploiement est l'acte technique de déplacer le matériel/logiciel vers la production." },
+
+    // --- SÉCURITÉ DE L'INFORMATION ---
+    { id: 318, q: "Quel est le but de la gestion de la sécurité de l'information ?", opts: ["Protéger les informations de l'organisation", "Accélérer le réseau", "Réduire les coûts de licence", "Embaucher des développeurs"], c: 0, j: "Elle protège la confidentialité, l'intégrité et la disponibilité des données." },
+
+    // --- GESTION DES FOURNISSEURS ---
+    { id: 319, q: "Quel est le but de la gestion des fournisseurs ?", opts: ["Vendre des produits aux clients", "S'assurer que les performances des tiers soutiennent la qualité des services", "Remplacer le service RH", "Gérer la paie des employés"], c: 1, j: "Elle s'assure que les fournisseurs tiers fournissent des services conformes aux attentes." },
+
+    // --- GESTION DES RELATIONS ---
+    { id: 320, q: "Quel est le but de la gestion des relations ?", opts: ["Installer des logiciels de chat", "Établir et entretenir les liens entre l'organisation et ses parties prenantes", "Gérer les mots de passe", "Surveiller les routeurs"], c: 1, j: "Elle identifie et entretient les relations stratégiques et tactiques." },
+
+    // --- SURVEILLANCE ET ÉVÉNEMENTS ---
+    { id: 321, q: "Quel est le but de la surveillance et de la gestion des événements ?", opts: ["Observer systématiquement les changements d'état des composants", "Résoudre les problèmes de personnel", "Négocier des tarifs avec les fournisseurs", "Rédiger le catalogue des services"], c: 0, j: "Elle identifie les changements d'état significatifs pour la gestion du service." }
+];
+
+    let currentQuestions = [];
+    let currentIndex = 0;
+    let score = 0;
+    let timer = 1200; // 20 minutes par défaut
+    let interval;
+    let isPaused = false;
+    let selectedIdx = null;
+    let step = "ANSWER";
+    let maxQuestions = 10;
+
+    function goHome() {
+        clearInterval(interval);
+        currentIndex = 0;
+        score = 0;
+        timer = 1200;
+        isPaused = false;
+        step = "ANSWER";
+        document.getElementById('screen-quiz').classList.add('hidden');
+        document.getElementById('screen-result').classList.add('hidden');
+        document.getElementById('screen-welcome').classList.remove('hidden');
+        document.getElementById('options-container').style.opacity = "1";
+    }
+
+    function initQuiz(mode) {
+        let pool = [];
+        let failedIds = JSON.parse(localStorage.getItem('itil_failed_ids') || "[]");
+        timer = 1200; 
+
+        if(mode === 'JOUR1') {
+            pool = questionsBank.filter(q => JOUR1_IDS.includes(q.id));
+            maxQuestions = pool.length; 
+        } else if(mode === 'JOUR2') {
+            pool = questionsBank.filter(q => JOUR2_IDS.includes(q.id));
+            maxQuestions = pool.length;
+        } else if(mode === 'JOUR3') {
+            pool = questionsBank.filter(q => JOUR3_IDS.includes(q.id));
+            maxQuestions = pool.length;
+        } else if(mode === 'PRATIQUES') {
+    	    pool = questionsBank.filter(q => q.id >= 300); // Sélectionne la nouvelle base
+    	    maxQuestions = 20; // On en prend 20 au hasard
+    	    timer = 1200; // 20 minutes
+	} else {
+            pool = [...questionsBank].sort(() => 0.5 - Math.random());
+            maxQuestions = 40;
+            timer = 2400; 
+        }
+
+        let currentFailedInPool = pool.filter(q => failedIds.includes(q.id));
+        let othersInPool = pool.filter(q => !failedIds.includes(q.id)).sort(() => 0.5 - Math.random());
+        currentQuestions = [...currentFailedInPool, ...othersInPool].slice(0, maxQuestions);
+        
+        document.getElementById('screen-welcome').classList.add('hidden');
+        document.getElementById('screen-quiz').classList.remove('hidden');
+        loadQuestion();
+        startTimer();
+    }
+
+    function loadQuestion() {
+        selectedIdx = null;
+        step = "ANSWER";
+        const q = currentQuestions[currentIndex];
+        document.getElementById('progress').innerText = `Question ${currentIndex + 1} / ${maxQuestions}`;
+        document.getElementById('question-text').innerText = q.q;
+        document.getElementById('feedback-area').classList.add('hidden');
+        document.getElementById('btn-continue').innerText = "Confirmer la réponse";
+        const container = document.getElementById('options-container');
+        container.innerHTML = "";
+        q.opts.forEach((opt, i) => {
+            const div = document.createElement('div');
+            div.className = 'option';
+            div.innerText = opt;
+            div.onclick = () => { if(step === "ANSWER") selectOption(i); };
+            container.appendChild(div);
+        });
+    }
+
+    function selectOption(i) {
+        selectedIdx = i;
+        document.querySelectorAll('.option').forEach((el, idx) => {
+            el.classList.toggle('selected', idx === i);
+        });
+    }
+
+    function handleAction() {
+        if(selectedIdx === null) return alert("Veuillez choisir une réponse.");
+        if(step === "ANSWER") {
+            const q = currentQuestions[currentIndex];
+            step = "NEXT";
+            const feedbackArea = document.getElementById('feedback-area');
+            feedbackArea.classList.remove('hidden');
+            let failedIds = JSON.parse(localStorage.getItem('itil_failed_ids') || "[]");
+
+            if(selectedIdx === q.c) {
+                score++;
+                feedbackArea.className = "feedback correct-box";
+                feedbackArea.innerHTML = `✅ Correct ! <br><small>${q.j}</small>`;
+                failedIds = failedIds.filter(id => id !== q.id);
+            } else {
+                feedbackArea.className = "feedback wrong-box";
+                feedbackArea.innerHTML = `❌ Erreur. La réponse était : ${q.opts[q.c]}<br><small>${q.j}</small>`;
+                if(!failedIds.includes(q.id)) failedIds.push(q.id);
+            }
+            localStorage.setItem('itil_failed_ids', JSON.stringify(failedIds));
+            document.getElementById('btn-continue').innerText = "Suivant";
+        } else {
+            currentIndex++;
+            if(currentIndex < maxQuestions) loadQuestion();
+            else finishQuiz();
+        }
+    }
+
+    function startTimer() {
+        interval = setInterval(() => {
+            if(!isPaused) {
+                timer--;
+                const m = Math.floor(timer/60);
+                const s = timer%60;
+                const display = document.getElementById('timer');
+                display.innerText = `${m}:${s < 10 ? '0'+s : s}`;
+                if(timer < 60) display.classList.add('blink');
+                if(timer <= 0) finishQuiz();
+            }
+        }, 1000);
+    }
+
+    function togglePause() {
+        isPaused = !isPaused;
+        document.getElementById('btn-pause').innerText = isPaused ? "Reprendre" : "Pause";
+        document.getElementById('options-container').style.opacity = isPaused ? "0.1" : "1";
+    }
+
+    function finishQuiz() {
+        clearInterval(interval);
+        document.getElementById('screen-quiz').classList.add('hidden');
+        document.getElementById('screen-result').classList.remove('hidden');
+        const finalScore = Math.round((score / maxQuestions) * 100);
+        document.getElementById('result-summary').innerText = `Score : ${score} / ${maxQuestions} (${finalScore}%)`;
+        const status = document.getElementById('result-status');
+        status.innerText = finalScore >= 65 ? "RÉUSSI ✅" : "ÉCHEC ❌";
+        status.style.color = finalScore >= 65 ? "var(--success)" : "var(--danger)";
+    }
+</script>
+</body>
+</html>
